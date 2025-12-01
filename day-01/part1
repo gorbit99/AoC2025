@@ -1,0 +1,20 @@
+#!/usr/bin/env bash
+
+position=50
+password=0
+
+while read -r line; do
+    dir=${line:0:1}
+    clicks=${line:1}
+
+    if [[ "$dir" == 'L' ]]; then
+        ((clicks*=-1))
+    fi
+    ((position = (position + clicks) % 100))
+
+    if (( position == 0 )); then
+        ((password++))
+    fi
+done < "$1"
+
+echo "$password"
