@@ -1,0 +1,20 @@
+#!/usr/bin/env bash
+
+IFS=',' read -ra ranges < "$1"
+
+sum=0
+for range in "${ranges[@]}"; do
+    IFS='-' read -r start end <<< "$range"
+    for (( i = start; i <= end; i++ )); do
+        length="${#i}"
+        if ((length % 2 != 0)); then
+            continue
+        fi
+
+        if [[ "${i:0:length / 2}" == "${i:length / 2}" ]]; then
+            ((sum += i))
+        fi
+    done
+done
+
+echo "$sum"

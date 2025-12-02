@@ -1,0 +1,92 @@
+#!/usr/bin/env bash
+
+gen-divisor() {
+    local repeat="$1"
+    local seg="$2"
+    local result=1
+    local multiplier=$((10 ** seg))
+    for (( i = 1; i < repeat; i++ )); do
+        ((result = result * multiplier + 1))
+    done
+    echo "$result"
+}
+
+handle-range() {
+    local min="$1"
+    local max="$2"
+
+    local length="${#1}"
+
+    local tests=()
+    for (( i = 1; i <= length / 2; i++ )); do
+        if (( length % i != 0 )); then
+            continue
+        fi
+
+        ((repeat = length / i))
+        test="$(gen-divisor "$repeat" "$i")"
+        tests+=("$test")
+    done
+
+    if (( "${#tests}" == 0 )); then
+        echo "0"
+        return
+    fi
+
+    local current=$min
+    local sum=0
+    while (( current <= max )); do
+        local min_rem=$((current % tests[0]))
+        local min_skip=$((tests[0] - min_rem))
+        for test in "${tests[@]}"; do
+            local remainder=$((current % test))
+
+            if (( remainder < min_rem )); then
+                min_rem="$remainder"
+            fi
+
+            local skip=$((test - remainder))
+            if (( skip < min_skip )); then
+                min_skip="$skip"
+            fi
+        done
+
+        if (( min_rem == 0 )); then
+            ((sum += "$current"))
+        fi
+
+        ((current += min_skip))
+    done
+    echo "$sum"
+}
+
+handle-full-range() {
+    local min="$1"
+    local max="$2"
+
+    local length="${#min}"
+
+    local sum=0
+    while (( max > 10 ** length)); do
+        local new_max=$((10 ** length))
+        local partial=$(handle-range "$min" "$new_max")
+        ((sum += partial))
+        min="$new_max"
+        ((length++))
+    done
+
+    local partial=$(handle-range "$min" "$max")
+    ((sum += partial))
+    echo "$sum"
+}
+
+IFS=',' read -ra ranges < "$1"
+
+sum=0
+for range in "${ranges[@]}"; do
+    IFS='-' read -r start end <<< "$range"
+    range_sum=$(handle-full-range "$start" "$end")
+    ((sum += range_sum))
+done
+
+echo "$sum"
