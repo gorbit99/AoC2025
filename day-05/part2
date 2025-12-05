@@ -1,0 +1,31 @@
+#!/usr/bin/env bash
+
+ranges=()
+while read -r line; do
+    if [[ -z "$line" ]]; then
+        break
+    fi
+
+    ranges+=("$line")
+done < "$1"
+
+IFS=$'\n' sorted=("$(sort -n <<< "${ranges[*]}")")
+
+seen_max=0
+fresh_count=0
+for range in "${sorted[@]}"; do
+    IFS=- read min max <<< "$range"
+
+    if (( max <= seen_max )); then
+        continue
+    fi
+
+    if (( min <= seen_max )); then
+        min=$((seen_max + 1))
+    fi
+
+    ((fresh_count += max - min + 1))
+    seen_max="$max"
+done
+
+echo "$fresh_count"
