@@ -1,0 +1,62 @@
+#!/usr/bin/env bash
+
+extract-length() {
+    str="$1"
+    length="${#str}"
+    for (( i = 1; i < length; i++ )); do
+        if [[ "${str:i:1}" != ' ' ]]; then
+            echo "$i"
+            return
+        fi
+    done
+    echo "$((length + 1))"
+}
+
+lines=()
+while IFS='EOF' read -r line; do
+    lines+=("$line")
+done < "$1"
+
+height="${#lines[@]}"
+
+sum=0
+ops="${lines[$((height-1))]}"
+until [[ -z "$ops" ]]; do
+    op="${ops:0:1}"
+    segment=$(extract-length "$ops")
+    ops="${ops:segment}"
+
+    numbers=()
+    for (( i = 0; i < segment - 1; i++ )); do
+        numbers[i]=0
+    done
+
+    for (( y = 0; y < height - 1; y++ )); do
+        number="${lines[$y]:0:$segment}"
+        for (( i = 0; i < segment - 1; i++ )); do
+            digit="${number:$i:1}"
+            if [[ $digit == ' ' ]]; then
+                continue
+            fi
+            ((numbers[i] = numbers[i] * 10 + digit))
+        done
+        lines[y]="${lines[y]:$segment}"
+    done
+
+    result=0
+    if [[ "$op" == '*' ]]; then
+        result=1
+    fi
+
+    for (( i = 0; i < segment - 1; i++ )); do
+        if [[ "$op" == '+' ]]; then
+            ((result += numbers[i]))
+        else
+            ((result *= numbers[i]))
+        fi
+    done
+
+    ((sum += result))
+done
+
+echo "$sum"
