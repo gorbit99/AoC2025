@@ -1,0 +1,139 @@
+#!/usr/bin/env bash
+
+vertical_segments=()
+horizontal_segments=()
+
+sort_segment() {
+    x1="$1"
+    y1="$2"
+    x2="$3"
+    y2="$4"
+
+    if (( x1 == x2 )); then
+        if (( y1 < y2 )); then
+            vertical_segments+=("$x1,$y1,$y2")
+        else
+            vertical_segments+=("$x1,$y2,$y1")
+        fi
+    else
+        if (( x1 < x2 )); then
+            horizontal_segments+=("$y1,$x1,$x2")
+        else
+            horizontal_segments+=("$y1,$x2,$x1")
+        fi
+    fi
+}
+
+point_x=()
+point_y=()
+
+while read -r point; do
+    IFS=, read -r x y <<< "$point"
+    point_x+=("$x")
+    point_y+=("$y")
+    if [[ -z "$prev_x" ]]; then
+        prev_x="$x"
+        prev_y="$y"
+        first_x="$x"
+        first_y="$y"
+        continue
+    fi
+
+    sort_segment "$prev_x" "$prev_y" "$x" "$y"
+    prev_x="$x"
+    prev_y="$y"
+done < "$1"
+sort_segment "$prev_x" "$prev_y" "$first_x" "$first_y"
+point_count="${#point_x[@]}"
+
+vertical_segment_x=()
+vertical_segment_y1=()
+vertical_segment_y2=()
+
+horizontal_segment_y=()
+horizontal_segment_x1=()
+horizontal_segment_x2=()
+
+while read -r line; do
+    IFS=, read -r x y1 y2 <<< "$line"
+    vertical_segment_x+=("$x")
+    vertical_segment_y1+=("$y1")
+    vertical_segment_y2+=("$y2")
+done <<< "$(printf "%s\n" "${vertical_segments[@]}" | sort -n)"
+vertical_segment_count="${#vertical_segment_x[@]}"
+
+while read -r line; do
+    IFS=, read -r y x1 x2 <<< "$line"
+    horizontal_segment_y+=("$y")
+    horizontal_segment_x1+=("$x1")
+    horizontal_segment_x2+=("$x2")
+done <<< "$(printf "%s\n" "${horizontal_segments[@]}" | sort -n)"
+horizontal_segment_count="${#horizontal_segment_y[@]}"
+
+pairs=()
+for (( i = 0; i < point_count - 1; i++ )); do
+    x1="${point_x[i]}"
+    y1="${point_y[i]}"
+    for (( j = i + 1; j < point_count; j++ )); do
+        x2="${point_x[j]}"
+        y2="${point_y[j]}"
+
+        if (( x1 < x2 )); then
+            min_x="$x1"
+            max_x="$x2"
+        else
+            min_x="$x2"
+            max_x="$x1"
+        fi
+
+        if (( y1 < y2 )); then
+            min_y="$y1"
+            max_y="$y2"
+        else
+            min_y="$y2"
+            max_y="$y1"
+        fi
+
+        area=$(((max_x - min_x + 1) * (max_y - min_y + 1)))
+        pairs+=("$area,$min_x,$max_x,$min_y,$max_y")
+    done
+done
+
+while read -r pair; do
+    IFS=, read -r area x1 x2 y1 y2 <<< "$pair"
+
+    for (( i = 0; i < vertical_segment_count; i++ )); do
+        sx="${vertical_segment_x[i]}"
+        sy1="${vertical_segment_y1[i]}"
+        sy2="${vertical_segment_y2[i]}"
+
+        if (( sx >= x2 )); then
+            break
+        fi
+        if (( sx <= x1 )); then
+            continue
+        fi
+        if (( (y1 >= sy1 && y1 < sy2) || (y2 > sy1 && y2 <= sy2) )); then
+            continue 2
+        fi
+    done
+
+    for (( i = 0; i < horizontal_segment_count; i++ )); do
+        sy="${horizontal_segment_y[i]}"
+        sx1="${horizontal_segment_x1[i]}"
+        sx2="${horizontal_segment_x2[i]}"
+
+        if (( sy >= y2 )); then
+            break
+        fi
+        if (( sy <= y1 )); then
+            continue
+        fi
+        if (( (x1 >= sx1 && x1 < sx2) || (x2 > sx1 && x2 <= sx2) )); then
+            continue 2
+        fi
+    done
+
+    echo "$area"
+    exit
+done <<< "$(printf "%s\n" "${pairs[@]}" | sort -nr)"
