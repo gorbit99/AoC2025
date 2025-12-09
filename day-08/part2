@@ -1,0 +1,73 @@
+#!/usr/bin/env bash
+
+points=()
+while read -r line; do
+    points+=("$line")
+done < "$1"
+
+distances=()
+point_count="${#points[@]}"
+for (( i = 0; i < point_count; i++ )); do
+    IFS=, read -r x1 y1 z1 <<< "${points[i]}"
+    for (( j = i + 1; j < point_count; j++ )); do
+        IFS=, read -r x2 y2 z2 <<< "${points[j]}"
+
+        distance=$(((x1 - x2) ** 2 + (y1 - y2) ** 2 + (z1 - z2) ** 2))
+        distances+=("$distance,$i,$j")
+    done
+done
+
+readarray -t distances <<< "$(printf "%s\n" "${distances[@]}" | sort -n)"
+
+group=()
+for (( i = 0; i < point_count; i++ )); do
+    group+=("$i")
+done
+
+while true; do
+    all_good=true
+    for (( i = 0; i < point_count; i++ )); do
+        if (( group["$i"] != 0 )); then
+            all_good=false
+            break
+        fi
+    done
+
+    if [[ $all_good == true ]]; then
+        break
+    fi
+
+    first="${distances[0]}"
+    distances=("${distances[@]:1}")
+
+    IFS=, read -r _ i j <<< "$first"
+
+    left="${group["$i"]}"
+    right="${group["$j"]}"
+
+    if (( left == right )); then
+        continue
+    fi
+
+    if (( left < right )); then
+        smaller="$left"
+        bigger="$right"
+    else
+        smaller="$right"
+        bigger="$left"
+    fi
+
+    for point in "${!group[@]}"; do
+        if (( "${group["$point"]}" == bigger )); then
+            group["$point"]="$smaller"
+        fi
+    done
+done
+
+IFS=, read -r _ i j <<< "$first"
+left="${points[i]}"
+right="${points[j]}"
+IFS=, read -r x1 y1 z1 <<< "$left"
+IFS=, read -r x2 y2 z2 <<< "$right"
+
+echo "$((x1 * x2))"

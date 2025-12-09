@@ -1,0 +1,62 @@
+#!/usr/bin/env bash
+
+points=()
+while read -r line; do
+    points+=("$line")
+done < "$1"
+
+distances=()
+point_count="${#points[@]}"
+for (( i = 0; i < point_count; i++ )); do
+    IFS=, read -r x1 y1 z1 <<< "${points[i]}"
+    for (( j = i + 1; j < point_count; j++ )); do
+        IFS=, read -r x2 y2 z2 <<< "${points[j]}"
+
+        distance=$(((x1 - x2) ** 2 + (y1 - y2) ** 2 + (z1 - z2) ** 2))
+        distances+=("$distance,$i,$j")
+    done
+done
+
+readarray -t distances <<< "$(printf "%s\n" "${distances[@]}" | sort -n | head -n 1000)"
+declare -A connected
+for distance in "${distances[@]}"; do
+    IFS=, read -r _ i j <<< "$distance"
+    connected["$i,$j"]=true
+    connected["$j,$i"]=true
+done
+
+sizes=()
+declare -a handled
+for (( i = 0; i < point_count; i++ )); do
+    if [[ "${handled[i]}" = true ]]; then
+        continue
+    fi
+
+    size=0
+    queue=("$i")
+    handled[i]=true
+
+    while (( "${#queue[@]}" > 0 )); do
+        next="${queue[0]}"
+        queue=("${queue[@]:1}")
+        ((size++))
+
+        for (( j = 0; j < point_count; j++ )); do
+            if [[ "${handled[j]}" == true || "${connected["$next,$j"]}" != true ]]; then
+                continue
+            fi
+            queue+=("$j")
+            handled[j]=true
+        done
+    done
+
+    sizes+=("$size")
+done
+
+readarray -t sizes <<< "$(printf "%s\n" "${sizes[@]}" | sort -nr | head -n 3)"
+
+total=1
+for size in "${sizes[@]}"; do
+    ((total *= size))
+done
+echo "$total"
