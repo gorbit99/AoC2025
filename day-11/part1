@@ -1,0 +1,28 @@
+#!/usr/bin/env bash
+
+declare -A network
+
+while read -r line; do
+    IFS=':' read -r from to <<< "$line"
+    to="${to:1}"
+    network["$from"]="$to"
+done < "$1"
+
+queue=("you")
+count=0
+while (( "${#queue[@]}" > 0 )); do
+    top="${queue[0]}"
+    queue=("${queue[@]:1}")
+
+    to="${network["$top"]}"
+    IFS=' ' read -ra branches <<< "$to"
+    for branch in "${branches[@]}"; do
+        if [[ "$branch" == "out" ]]; then
+            ((count++))
+            continue
+        fi
+        queue+=("$branch")
+    done
+done
+
+echo "$count"
