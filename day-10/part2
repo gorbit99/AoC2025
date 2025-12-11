@@ -1,0 +1,64 @@
+#!/usr/bin/env bash
+
+# Requires z3 cli installed
+
+button_to_number() {
+    button="$1"
+    result=0
+    IFS=, read -ra changes <<< "$button"
+    for change in "${changes[@]}"; do
+        ((result |= 2 ** change))
+    done <<< "$button"
+    echo "$result"
+}
+
+sum=0
+while read -r line; do
+    IFS=' ' read -ra parts <<< "$line"
+    buttons=()
+    for part in "${parts[@]}"; do
+        if [[ "$part" == \(*\) ]]; then
+            length="${#part}"
+            inside="${part:1:$((length - 2))}"
+            change=$(button_to_number "$inside")
+            buttons+=("$change")
+        elif [[ "$part" == \{*\} ]]; then
+            length="${#part}"
+            inside="${part:1:$((length - 2))}"
+            IFS=, read -ra expected <<< "$inside"
+        fi
+    done
+
+    solver_script="(set-logic QF_LIA)\n"
+    for (( i = 0; i < "${#buttons[@]}"; i++ )); do
+        solver_script+="(declare-fun k$i () Int)\n"
+        solver_script+="(assert (>= k$i 0))\n"
+    done
+
+    for (( i = 0; i < "${#expected[@]}"; i++ )); do
+        solver_script+="(assert (= (+ "
+        for (( j = 0; j < "${#buttons[@]}"; j++ )); do
+            button="${buttons[j]}"
+            if (( button & 1 << i )); then
+                solver_script+="k$j "
+            fi
+        done
+        result="${expected[i]}"
+        solver_script+=") $result))\n"
+    done
+
+    solver_script+="(define-fun totalK () Int (+ "
+    for (( i = 0; i < "${#buttons[@]}"; i++ )); do
+        solver_script+="k$i "
+    done
+    solver_script+="))\n"
+    solver_script+="(minimize totalK)\n"
+    solver_script+="(check-sat)\n"
+    solver_script+="(eval totalK)\n"
+
+    # echo -e "$solver_script"
+    result="$(echo -e "$solver_script" | z3 -in -smt2 | tail -n 1)"
+    ((sum += result))
+done < "$1"
+
+echo "$sum"
